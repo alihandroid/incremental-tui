@@ -1,12 +1,7 @@
-use ratatui::{
-    buffer::Buffer,
-    layout::{Alignment, Rect},
-    style::{Color, Stylize},
-    widgets::{Block, BorderType, Paragraph, Widget},
-};
-
 use crate::app::App;
-
+use ratatui::prelude::*;
+use ratatui::widgets::{Block, BorderType, Gauge};
+use tui_widget_list::{ListBuilder, ListState, ListView};
 impl Widget for &App {
     /// Renders the user interface widgets.
     ///
@@ -20,20 +15,27 @@ impl Widget for &App {
             .title_alignment(Alignment::Center)
             .border_type(BorderType::Rounded);
 
-        let text = format!(
-            "This is a tui template.\n\
-                Press `Esc`, `Ctrl-C` or `q` to stop running.\n\
-                Press left and right to increment and decrement the counter respectively.\n\
-                Counter: {}",
-            self.counter
-        );
+        let builder = ListBuilder::new(|context| {
+            let resource = self.resources[context.index].clone();
+            let gauge_style = if context.is_selected {
+                Style::default().green().on_black()
+            } else {
+                Style::default().black().on_green()
+            };
+            let item = Gauge::default()
+                .use_unicode(true)
+                .gauge_style(gauge_style)
+                .ratio(resource.progress);
 
-        let paragraph = Paragraph::new(text)
-            .block(block)
-            .fg(Color::Cyan)
-            .bg(Color::Black)
-            .centered();
+            // Return the size of the widget along the main axis.
+            let main_axis_size = 1;
 
-        paragraph.render(area, buf);
+            (item, main_axis_size)
+        });
+
+        let mut list_state = ListState::default();
+        let list = ListView::new(builder, self.resources.len()).block(block);
+
+        list.render(area, buf, &mut list_state);
     }
 }

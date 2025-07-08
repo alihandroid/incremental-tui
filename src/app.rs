@@ -4,13 +4,34 @@ use ratatui::{
     crossterm::event::{KeyCode, KeyEvent, KeyModifiers},
 };
 
+#[derive(Debug, Clone)]
+pub struct Resource {
+    pub name: String,
+    pub amount: u64,
+    pub level: u8,
+    pub progress: f64,
+    pub progress_per_tick: f64,
+}
+
+impl Resource {
+    pub fn new(name: impl Into<String>, progress_per_tick: f64) -> Self {
+        Self {
+            name: name.into(),
+            progress_per_tick,
+            amount: 0,
+            level: 1,
+            progress: 0.0,
+        }
+    }
+}
+
 /// Application.
 #[derive(Debug)]
 pub struct App {
     /// Is the application running?
     pub running: bool,
     /// Counter.
-    pub counter: u8,
+    pub resources: Vec<Resource>,
     /// Event handler.
     pub events: EventHandler,
 }
@@ -19,7 +40,11 @@ impl Default for App {
     fn default() -> Self {
         Self {
             running: true,
-            counter: 0,
+            resources: vec![
+                Resource::new("Wood", 0.5),
+                Resource::new("Iron", 0.1),
+                Resource::new("Diamond", 0.02),
+            ],
             events: EventHandler::new(),
         }
     }
@@ -48,8 +73,6 @@ impl App {
                 _ => {}
             },
             Event::App(app_event) => match app_event {
-                AppEvent::Increment => self.increment_counter(),
-                AppEvent::Decrement => self.decrement_counter(),
                 AppEvent::Quit => self.quit(),
             },
         }
@@ -63,8 +86,6 @@ impl App {
             KeyCode::Char('c' | 'C') if key_event.modifiers == KeyModifiers::CONTROL => {
                 self.events.send(AppEvent::Quit)
             }
-            KeyCode::Right => self.events.send(AppEvent::Increment),
-            KeyCode::Left => self.events.send(AppEvent::Decrement),
             // Other handlers you could add here.
             _ => {}
         }
@@ -75,18 +96,17 @@ impl App {
     ///
     /// The tick event is where you can update the state of your application with any logic that
     /// needs to be updated at a fixed frame rate. E.g. polling a server, updating an animation.
-    pub fn tick(&self) {}
+    pub fn tick(&mut self) {
+        for resource in &mut self.resources {
+            resource.progress += resource.level as f64 * resource.progress_per_tick / 100.0;
+            let whole_part = resource.progress.floor() as u64;
+            resource.amount += whole_part;
+            resource.progress = resource.progress.fract();
+        }
+    }
 
     /// Set running to false to quit the application.
     pub fn quit(&mut self) {
         self.running = false;
-    }
-
-    pub fn increment_counter(&mut self) {
-        self.counter = self.counter.saturating_add(1);
-    }
-
-    pub fn decrement_counter(&mut self) {
-        self.counter = self.counter.saturating_sub(1);
     }
 }
