@@ -7,7 +7,7 @@ use std::{
 };
 
 /// The frequency at which tick events are emitted.
-const TICK_FPS: f64 = 30.0;
+const TICK_FPS: f64 = 60.0;
 
 /// Representation of all possible events.
 #[derive(Clone, Debug)]
@@ -35,6 +35,8 @@ pub enum Event {
 pub enum AppEvent {
     /// Quit the application.
     Quit,
+    GoDown,
+    GoUp,
 }
 
 /// Terminal event handler.

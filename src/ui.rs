@@ -1,7 +1,7 @@
 use crate::app::App;
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, BorderType, Gauge};
-use tui_widget_list::{ListBuilder, ListState, ListView};
+use tui_widget_list::{ListBuilder, ListView};
 impl Widget for &App {
     /// Renders the user interface widgets.
     ///
@@ -17,25 +17,31 @@ impl Widget for &App {
 
         let builder = ListBuilder::new(|context| {
             let resource = self.resources[context.index].clone();
-            let gauge_style = if context.is_selected {
-                Style::default().green().on_black()
+            let resource_label = format!("{} (Lvl {}): {}", resource.name, resource.level, resource.amount);
+            let resource_block = if context.is_selected {
+                Block::default().title(resource_label).on_black()
             } else {
-                Style::default().black().on_green()
+                Block::default().title(resource_label)
+            };
+            let gauge_style = if context.is_selected {
+                Style::default().fg(Color::Green).bg(Color::Black)
+            } else {
+                Style::default().fg(Color::Blue).bg(Color::Reset)
             };
             let item = Gauge::default()
-                .use_unicode(true)
                 .gauge_style(gauge_style)
-                .ratio(resource.progress);
+                .ratio(resource.progress)
+                .block(resource_block);
 
             // Return the size of the widget along the main axis.
-            let main_axis_size = 1;
+            let main_axis_size = 2;
 
             (item, main_axis_size)
         });
 
-        let mut list_state = ListState::default();
-        let list = ListView::new(builder, self.resources.len()).block(block);
+        let list = ListView::new(builder, self.resources.len())
+            .block(block);
 
-        list.render(area, buf, &mut list_state);
+        list.render(area, buf, &mut self.list_state.borrow_mut());
     }
 }

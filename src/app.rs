@@ -1,8 +1,10 @@
+use std::cell::RefCell;
 use crate::event::{AppEvent, Event, EventHandler};
 use ratatui::{
     DefaultTerminal,
     crossterm::event::{KeyCode, KeyEvent, KeyModifiers},
 };
+use tui_widget_list::ListState;
 
 #[derive(Debug, Clone)]
 pub struct Resource {
@@ -34,6 +36,7 @@ pub struct App {
     pub resources: Vec<Resource>,
     /// Event handler.
     pub events: EventHandler,
+    pub list_state: RefCell<ListState>,
 }
 
 impl Default for App {
@@ -41,11 +44,13 @@ impl Default for App {
         Self {
             running: true,
             resources: vec![
-                Resource::new("Wood", 0.5),
-                Resource::new("Iron", 0.1),
-                Resource::new("Diamond", 0.02),
+                Resource::new("Wood", 7.2),
+                Resource::new("Stone", 3.4),
+                Resource::new("Iron", 1.9),
+                Resource::new("Diamond", 0.7),
             ],
             events: EventHandler::new(),
+            list_state: RefCell::new(ListState::default())
         }
     }
 }
@@ -73,6 +78,8 @@ impl App {
                 _ => {}
             },
             Event::App(app_event) => match app_event {
+                AppEvent::GoDown => self.list_state.borrow_mut().next(),
+                AppEvent::GoUp => self.list_state.borrow_mut().previous(),
                 AppEvent::Quit => self.quit(),
             },
         }
@@ -86,6 +93,8 @@ impl App {
             KeyCode::Char('c' | 'C') if key_event.modifiers == KeyModifiers::CONTROL => {
                 self.events.send(AppEvent::Quit)
             }
+            KeyCode::Down => self.events.send(AppEvent::GoDown),
+            KeyCode::Up => self.events.send(AppEvent::GoUp),
             // Other handlers you could add here.
             _ => {}
         }
