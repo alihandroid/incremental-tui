@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::fmt::Display;
 use crate::event::{AppEvent, Event, EventHandler};
 use ratatui::{
     DefaultTerminal,
@@ -7,8 +8,28 @@ use ratatui::{
 use tui_widget_list::ListState;
 
 #[derive(Debug, Clone)]
+pub enum ResourceType {
+    Wood,
+    Stone,
+    Iron,
+    Diamond,
+}
+
+impl Display for ResourceType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let str = match self {
+            ResourceType::Wood => "Wood",
+            ResourceType::Stone => "Stone",
+            ResourceType::Iron => "Iron",
+            ResourceType::Diamond => "Diamond"
+        };
+        write!(f, "{}", str)
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct Resource {
-    pub name: String,
+    pub resource_type: ResourceType,
     pub amount: u64,
     pub level: u8,
     pub progress: f64,
@@ -16,9 +37,9 @@ pub struct Resource {
 }
 
 impl Resource {
-    pub fn new(name: impl Into<String>, progress_per_tick: f64) -> Self {
+    pub fn new(name: ResourceType, progress_per_tick: f64) -> Self {
         Self {
-            name: name.into(),
+            resource_type: name,
             progress_per_tick,
             amount: 0,
             level: 1,
@@ -44,10 +65,10 @@ impl Default for App {
         Self {
             running: true,
             resources: vec![
-                Resource::new("Wood", 7.2),
-                Resource::new("Stone", 3.4),
-                Resource::new("Iron", 1.9),
-                Resource::new("Diamond", 0.7),
+                Resource::new(ResourceType::Wood, 7.2),
+                Resource::new(ResourceType::Stone, 3.4),
+                Resource::new(ResourceType::Iron, 1.9),
+                Resource::new(ResourceType::Diamond, 0.7),
             ],
             events: EventHandler::new(),
             list_state: RefCell::new(ListState::default())
