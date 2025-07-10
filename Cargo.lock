@@ -250,7 +250,6 @@ name = "incremental-tui"
 version = "0.1.0"
 dependencies = [
  "color-eyre",
- "crossterm",
  "ratatui",
  "tui-widget-list",
 ]
