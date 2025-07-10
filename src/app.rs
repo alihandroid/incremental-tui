@@ -23,7 +23,7 @@ impl Display for ResourceType {
             ResourceType::Iron => "Iron",
             ResourceType::Diamond => "Diamond",
         };
-        write!(f, "{}", str)
+        write!(f, "{str}")
     }
 }
 
@@ -94,10 +94,11 @@ impl App {
     pub fn handle_events(&mut self) -> color_eyre::Result<()> {
         match self.events.next()? {
             Event::Tick => self.tick(),
-            Event::Crossterm(event) => match event {
-                ratatui::crossterm::event::Event::Key(key_event) => self.handle_key_event(key_event)?,
-                _ => {}
-            },
+            Event::Crossterm(event) => {
+                if let ratatui::crossterm::event::Event::Key(key_event) = event {
+                    self.handle_key_event(key_event)?
+                }
+            }
             Event::App(app_event) => match app_event {
                 AppEvent::GoDown => self.list_state.borrow_mut().next(),
                 AppEvent::GoUp => self.list_state.borrow_mut().previous(),
