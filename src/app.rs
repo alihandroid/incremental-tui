@@ -1,10 +1,10 @@
-use std::cell::RefCell;
-use std::fmt::Display;
 use crate::event::{AppEvent, Event, EventHandler};
 use ratatui::{
     DefaultTerminal,
     crossterm::event::{KeyCode, KeyEvent, KeyModifiers},
 };
+use std::cell::RefCell;
+use std::fmt::Display;
 use tui_widget_list::ListState;
 
 #[derive(Debug, Clone)]
@@ -21,7 +21,7 @@ impl Display for ResourceType {
             ResourceType::Wood => "Wood",
             ResourceType::Stone => "Stone",
             ResourceType::Iron => "Iron",
-            ResourceType::Diamond => "Diamond"
+            ResourceType::Diamond => "Diamond",
         };
         write!(f, "{}", str)
     }
@@ -71,7 +71,7 @@ impl Default for App {
                 Resource::new(ResourceType::Diamond, 0.7),
             ],
             events: EventHandler::new(),
-            list_state: RefCell::new(ListState::default())
+            list_state: RefCell::new(ListState::default()),
         }
     }
 }
