@@ -4,10 +4,11 @@ use ratatui::{
     crossterm::event::{KeyCode, KeyEvent, KeyModifiers},
 };
 use std::cell::RefCell;
-use std::fmt::Display;
+use std::cmp::PartialEq;
+use std::fmt::{Display, Formatter};
 use tui_widget_list::ListState;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum ResourceType {
     Wood,
     Stone,
@@ -28,23 +29,57 @@ impl Display for ResourceType {
 }
 
 #[derive(Debug, Clone)]
+pub struct Cost {
+    pub amount: u64,
+    pub resource_type: ResourceType,
+}
+
+impl Cost {
+    pub fn new(amount: u64, resource_type: ResourceType) -> Self {
+        Self {
+            amount,
+            resource_type,
+        }
+    }
+}
+
+impl Display for Cost {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} {}", self.amount, self.resource_type)
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct Resource {
     pub resource_type: ResourceType,
     pub amount: u64,
-    pub level: u8,
+    pub level: u64,
+    pub cost: Cost,
     pub progress: f64,
     pub progress_per_tick: f64,
 }
 
 impl Resource {
-    pub fn new(name: ResourceType, progress_per_tick: f64) -> Self {
+    pub fn new(name: ResourceType, progress_per_tick: f64, cost: Cost) -> Self {
         Self {
             resource_type: name,
             progress_per_tick,
+            cost,
             amount: 0,
-            level: 1,
+            level: 0,
             progress: 0.0,
         }
+    }
+
+    pub(crate) fn start_with(self, amount: u64) -> Self {
+        Self { amount, ..self }
+    }
+
+    pub fn upgrade_cost(&self) -> Cost {
+        Cost::new(
+            self.cost.amount.pow(self.level as u32 + 1),
+            self.cost.resource_type,
+        )
     }
 }
 
@@ -65,10 +100,15 @@ impl Default for App {
         Self {
             running: true,
             resources: vec![
-                Resource::new(ResourceType::Wood, 7.2),
-                Resource::new(ResourceType::Stone, 3.4),
-                Resource::new(ResourceType::Iron, 1.9),
-                Resource::new(ResourceType::Diamond, 0.7),
+                Resource::new(ResourceType::Wood, 1.0, Cost::new(2, ResourceType::Wood))
+                    .start_with(2),
+                Resource::new(ResourceType::Stone, 0.5, Cost::new(3, ResourceType::Wood)),
+                Resource::new(ResourceType::Iron, 0.1, Cost::new(4, ResourceType::Stone)),
+                Resource::new(
+                    ResourceType::Diamond,
+                    0.010,
+                    Cost::new(5, ResourceType::Iron),
+                ),
             ],
             events: EventHandler::new(),
             list_state: RefCell::new(ListState::default()),
@@ -102,6 +142,10 @@ impl App {
             Event::App(app_event) => match app_event {
                 AppEvent::GoDown => self.list_state.borrow_mut().next(),
                 AppEvent::GoUp => self.list_state.borrow_mut().previous(),
+                AppEvent::Upgrade => {
+                    let index = self.list_state.borrow().selected;
+                    self.upgrade_resource(index)
+                }
                 AppEvent::Quit => self.quit(),
             },
         }
@@ -117,6 +161,7 @@ impl App {
             }
             KeyCode::Down => self.events.send(AppEvent::GoDown),
             KeyCode::Up => self.events.send(AppEvent::GoUp),
+            KeyCode::Enter => self.events.send(AppEvent::Upgrade),
             // Other handlers you could add here.
             _ => {}
         }
@@ -139,5 +184,28 @@ impl App {
     /// Set running to false to quit the application.
     pub fn quit(&mut self) {
         self.running = false;
+    }
+
+    pub fn upgrade_resource(&mut self, index: Option<usize>) {
+        let Some(index) = index else {
+            self.list_state.borrow_mut().next();
+            return;
+        };
+
+        let cost = self.resources[index].upgrade_cost();
+        let cost_resource = self
+            .resources
+            .iter_mut()
+            .find(|x| x.resource_type == cost.resource_type);
+        let Some(cost_resource) = cost_resource else {
+            return;
+        };
+
+        if cost_resource.amount < cost.amount {
+            return;
+        }
+        cost_resource.amount -= cost.amount;
+
+        self.resources[index].level += 1;
     }
 }
