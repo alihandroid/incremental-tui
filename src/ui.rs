@@ -16,13 +16,14 @@ impl Widget for &App {
             .border_type(BorderType::Rounded);
 
         let builder = ListBuilder::new(|context| {
-            let resource = self.resources[context.index].clone();
+            let resource = &self.resources[context.index];
             let resource_label = format!(
                 "{} (Lvl {}): {}",
                 resource.resource_type, resource.level, resource.amount
             );
             let resource_block = if context.is_selected {
-                let upgrade_str = "Press <Enter> to upgrade";
+                let cost = resource.upgrade_cost();
+                let upgrade_str = format!("Cost: {cost} - Press <Enter> to upgrade");
                 Block::bordered()
                     .title(resource_label)
                     .title_bottom(upgrade_str)

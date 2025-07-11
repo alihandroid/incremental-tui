@@ -37,6 +37,7 @@ pub enum AppEvent {
     Quit,
     GoDown,
     GoUp,
+    Upgrade,
 }
 
 /// Terminal event handler.
