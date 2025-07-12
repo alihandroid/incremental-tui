@@ -16,7 +16,7 @@ impl Widget for &App {
             .border_type(BorderType::Rounded);
 
         let builder = ListBuilder::new(|context| {
-            let resource = &self.resources[context.index];
+            let resource = &self.game_state.resources[context.index];
             let resource_label = format!(
                 "{} (Lvl {}): {}",
                 resource.resource_type, resource.level, resource.amount
@@ -48,7 +48,7 @@ impl Widget for &App {
             (item, main_axis_size)
         });
 
-        let list = ListView::new(builder, self.resources.len()).block(block);
+        let list = ListView::new(builder, self.game_state.resources.len()).block(block);
 
         list.render(area, buf, &mut self.list_state.borrow_mut());
     }

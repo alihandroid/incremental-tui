@@ -38,6 +38,7 @@ pub enum AppEvent {
     GoDown,
     GoUp,
     Upgrade,
+    Save,
 }
 
 /// Terminal event handler.

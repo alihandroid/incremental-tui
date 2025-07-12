@@ -1,14 +1,17 @@
 use crate::event::{AppEvent, Event, EventHandler};
+use color_eyre::eyre::WrapErr;
 use ratatui::{
     DefaultTerminal,
     crossterm::event::{KeyCode, KeyEvent, KeyModifiers},
 };
+use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::cmp::PartialEq;
 use std::fmt::{Display, Formatter};
+use std::fs::File;
 use tui_widget_list::ListState;
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ResourceType {
     Wood,
     Stone,
@@ -28,7 +31,7 @@ impl Display for ResourceType {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Cost {
     pub amount: u64,
     pub resource_type: ResourceType,
@@ -49,7 +52,7 @@ impl Display for Cost {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Resource {
     pub resource_type: ResourceType,
     pub amount: u64,
@@ -83,22 +86,14 @@ impl Resource {
     }
 }
 
-/// Application.
-#[derive(Debug)]
-pub struct App {
-    /// Is the application running?
-    pub running: bool,
-    /// Counter.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GameState {
     pub resources: Vec<Resource>,
-    /// Event handler.
-    pub events: EventHandler,
-    pub list_state: RefCell<ListState>,
 }
 
-impl Default for App {
+impl Default for GameState {
     fn default() -> Self {
         Self {
-            running: true,
             resources: vec![
                 Resource::new(ResourceType::Wood, 1.0, Cost::new(2, ResourceType::Wood))
                     .start_with(2),
@@ -110,6 +105,27 @@ impl Default for App {
                     Cost::new(5, ResourceType::Iron),
                 ),
             ],
+        }
+    }
+}
+
+/// Application.
+#[derive(Debug)]
+pub struct App {
+    /// Is the application running?
+    pub running: bool,
+    /// State.
+    pub game_state: GameState,
+    /// Event handler.
+    pub events: EventHandler,
+    pub list_state: RefCell<ListState>,
+}
+
+impl Default for App {
+    fn default() -> Self {
+        Self {
+            running: true,
+            game_state: GameState::default(),
             events: EventHandler::new(),
             list_state: RefCell::new(ListState::default()),
         }
@@ -124,6 +140,7 @@ impl App {
 
     /// Run the application's main loop.
     pub fn run(mut self, mut terminal: DefaultTerminal) -> color_eyre::Result<()> {
+        self.load()?;
         while self.running {
             terminal.draw(|frame| frame.render_widget(&self, frame.area()))?;
             self.handle_events()?;
@@ -146,6 +163,7 @@ impl App {
                     let index = self.list_state.borrow().selected;
                     self.upgrade_resource(index)
                 }
+                AppEvent::Save => self.save()?,
                 AppEvent::Quit => self.quit(),
             },
         }
@@ -162,6 +180,9 @@ impl App {
             KeyCode::Down => self.events.send(AppEvent::GoDown),
             KeyCode::Up => self.events.send(AppEvent::GoUp),
             KeyCode::Enter => self.events.send(AppEvent::Upgrade),
+            KeyCode::Char('s' | 'S') if key_event.modifiers == KeyModifiers::CONTROL => {
+                self.events.send(AppEvent::Save)
+            }
             // Other handlers you could add here.
             _ => {}
         }
@@ -173,7 +194,7 @@ impl App {
     /// The tick event is where you can update the state of your application with any logic that
     /// needs to be updated at a fixed frame rate. E.g. polling a server, updating an animation.
     pub fn tick(&mut self) {
-        for resource in &mut self.resources {
+        for resource in &mut self.game_state.resources {
             resource.progress += resource.level as f64 * resource.progress_per_tick / 100.0;
             let whole_part = resource.progress.floor() as u64;
             resource.amount += whole_part;
@@ -192,8 +213,9 @@ impl App {
             return;
         };
 
-        let cost = self.resources[index].upgrade_cost();
+        let cost = self.game_state.resources[index].upgrade_cost();
         let cost_resource = self
+            .game_state
             .resources
             .iter_mut()
             .find(|x| x.resource_type == cost.resource_type);
@@ -206,6 +228,22 @@ impl App {
         }
         cost_resource.amount -= cost.amount;
 
-        self.resources[index].level += 1;
+        self.game_state.resources[index].level += 1;
+    }
+
+    pub fn save(&self) -> color_eyre::Result<()> {
+        let save_file_path = "save.json";
+        let save_file = File::create(save_file_path).wrap_err("failed to create save file")?;
+        serde_json::to_writer_pretty(save_file, &self.game_state)
+            .wrap_err("failed to save game state")?;
+        Ok(())
+    }
+
+    pub fn load(&mut self) -> color_eyre::Result<()> {
+        let save_file_path = "save.json";
+        let save_file = File::open(save_file_path).wrap_err("failed to open save file")?;
+        self.game_state =
+            serde_json::from_reader(save_file).wrap_err("failed to load game state")?;
+        Ok(())
     }
 }
