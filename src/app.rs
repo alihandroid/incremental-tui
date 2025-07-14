@@ -1,4 +1,4 @@
-use crate::event::{AppEvent, Event, EventHandler};
+use crate::event::{AppEvent, Event, EventHandler, TICK_FPS};
 use color_eyre::eyre::WrapErr;
 use ratatui::{
     DefaultTerminal,
@@ -8,7 +8,9 @@ use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::cmp::PartialEq;
 use std::fmt::{Display, Formatter};
+use std::fs;
 use std::fs::File;
+use std::time::SystemTime;
 use tui_widget_list::ListState;
 
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
@@ -163,8 +165,7 @@ impl App {
                     let index = self.list_state.borrow().selected;
                     self.upgrade_resource(index)
                 }
-                AppEvent::Save => self.save()?,
-                AppEvent::Quit => self.quit(),
+                AppEvent::Quit => self.quit()?,
             },
         }
         Ok(())
@@ -180,9 +181,6 @@ impl App {
             KeyCode::Down => self.events.send(AppEvent::GoDown),
             KeyCode::Up => self.events.send(AppEvent::GoUp),
             KeyCode::Enter => self.events.send(AppEvent::Upgrade),
-            KeyCode::Char('s' | 'S') if key_event.modifiers == KeyModifiers::CONTROL => {
-                self.events.send(AppEvent::Save)
-            }
             // Other handlers you could add here.
             _ => {}
         }
@@ -203,8 +201,10 @@ impl App {
     }
 
     /// Set running to false to quit the application.
-    pub fn quit(&mut self) {
+    pub fn quit(&mut self) -> color_eyre::Result<()> {
+        self.save()?;
         self.running = false;
+        Ok(())
     }
 
     pub fn upgrade_resource(&mut self, index: Option<usize>) {
@@ -241,9 +241,21 @@ impl App {
 
     pub fn load(&mut self) -> color_eyre::Result<()> {
         let save_file_path = "save.json";
+        if !fs::exists(save_file_path)? {
+            return Ok(());
+        }
+
         let save_file = File::open(save_file_path).wrap_err("failed to open save file")?;
         self.game_state =
             serde_json::from_reader(save_file).wrap_err("failed to load game state")?;
+
+        let last_modified = fs::metadata(save_file_path)?.modified()?;
+        let current_time = SystemTime::now();
+        let offline_secs = current_time.duration_since(last_modified)?.as_secs_f64();
+        let offline_ticks = (offline_secs * TICK_FPS).floor() as u64;
+        for _ in 0..offline_ticks {
+            self.tick();
+        }
         Ok(())
     }
 }
